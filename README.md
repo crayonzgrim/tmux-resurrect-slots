@@ -51,6 +51,7 @@ run-shell ~/.tmux/plugins/tmux-resurrect-slots/resurrect_slots.tmux
 | `prefix + Ctrl-s` | Save to slot |
 | `prefix + Ctrl-r` | Restore from slot (fzf popup) |
 | `prefix + Ctrl-e` | Rename slot label |
+| `prefix + Ctrl-f` | List saved slots |
 
 ## Options
 
@@ -65,15 +66,45 @@ set -g @resurrect_slots_override_default_keys on
 
 # Enable rename keybinding (default: on)
 set -g @resurrect_slots_enable_rename on
+
+# Enable list keybinding (default: on)
+set -g @resurrect_slots_enable_list on
 ```
 
-## How It Works
+## Usage
 
-1. **Save**: Triggers tmux-resurrect save, then copies the save file into an available slot. If all slots are full, an fzf popup lets you pick which slot to overwrite.
-2. **Restore**: Opens an fzf popup showing all saved slots sorted by time. The most recent slot is preselected. Selecting a slot symlinks it as tmux-resurrect's `last` file and triggers restore.
-3. **Rename**: Opens an fzf popup to pick a slot, then prompts for a new label.
+### Saving a Session
 
-## Slot Display Format
+1. Press `prefix + Ctrl-s`
+2. tmux-resurrect saves the current session first
+3. If an empty slot is available, the save is stored there automatically (lowest slot number)
+4. If all slots are full, an fzf popup appears — pick which slot to overwrite (press `ESC` to cancel)
+5. A confirmation message appears: `"saved to slot N"`
+
+### Restoring a Session
+
+1. Press `prefix + Ctrl-r`
+2. An fzf popup shows all saved slots, sorted by most recent first
+3. The latest save is preselected — press `Enter` to restore it, or navigate to a different slot
+4. Press `ESC` to cancel
+5. Without fzf installed, the most recent slot is restored automatically
+
+### Viewing Saved Slots
+
+1. Press `prefix + Ctrl-f`
+2. An fzf popup shows all slots (saved and empty)
+3. Select a slot to see its details (timestamp, label, session summary, file size)
+4. Press `ESC` to close without any action
+5. Without fzf installed, a summary message is shown (e.g., `"3/5 slots used"`)
+
+### Renaming a Slot
+
+1. Press `prefix + Ctrl-e`
+2. Pick a slot from the fzf popup
+3. A tmux prompt appears — type a label (e.g., `before-refactor`) and press `Enter`
+4. The label appears next to the slot in future popups
+
+### Slot Display Format
 
 ```
 [1] 2026-02-17 18:30:45 | my-project | main(3),dev(2)
@@ -83,6 +114,13 @@ set -g @resurrect_slots_enable_rename on
 
 Each row shows: slot number, timestamp, label, and session summary (session name with window count).
 
+## How It Works
+
+- **Save**: Triggers tmux-resurrect save, then copies the save file into an available slot. When all slots are full, an fzf popup lets you pick which to overwrite.
+- **Restore**: Symlinks the chosen slot file as tmux-resurrect's `last` file, then triggers tmux-resurrect restore.
+- **Rename**: Updates the label in `meta.tsv` without touching the save file itself.
+- **Data storage**: All slot data lives in `~/.tmux/resurrect/slots/` — a `meta.tsv` file tracks metadata and `slotN.txt` files hold the actual saves.
+
 ## Troubleshooting
 
 **fzf popup not appearing**
@@ -90,12 +128,16 @@ Each row shows: slot number, timestamp, label, and session summary (session name
 - Ensure tmux version supports popups: `tmux -V` (3.2+)
 
 **Save not working**
-- Check tmux-resurrect is installed and working: `prefix + Ctrl-s` should save without this plugin
+- Verify tmux-resurrect works on its own first
 - Check resurrect directory exists: `ls ~/.tmux/resurrect/`
 
-**Slots directory**
-- Slot data is stored in `~/.tmux/resurrect/slots/`
-- To reset: `rm -rf ~/.tmux/resurrect/slots/`
+**Restore not working**
+- Check that slot files exist: `ls ~/.tmux/resurrect/slots/`
+- Verify the `last` symlink: `ls -la ~/.tmux/resurrect/last`
+
+**Reset all slots**
+- Remove the slots directory: `rm -rf ~/.tmux/resurrect/slots/`
+- Slots will be re-initialized on next save
 
 ## License
 

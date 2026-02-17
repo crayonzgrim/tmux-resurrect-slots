@@ -18,6 +18,7 @@ get_tmux_option() {
 slot_count=$(get_tmux_option "@resurrect_slots" "5")
 override_keys=$(get_tmux_option "@resurrect_slots_override_default_keys" "on")
 enable_rename=$(get_tmux_option "@resurrect_slots_enable_rename" "on")
+enable_list=$(get_tmux_option "@resurrect_slots_enable_list" "on")
 
 # ── Bind keys ───────────────────────────────────────────
 
@@ -28,6 +29,10 @@ fi
 
 if [ "${enable_rename}" = "on" ]; then
   tmux bind-key C-e run-shell "${CURRENT_DIR}/scripts/rename.sh"
+fi
+
+if [ "${enable_list}" = "on" ]; then
+  tmux bind-key C-f run-shell "${CURRENT_DIR}/scripts/list.sh"
 fi
 
 # ── Initialize slots ───────────────────────────────────
