@@ -1,0 +1,6 @@
+*.swp
+*.swo
+*~
+.DS_Store
+docs/.pdca-status.json
+docs/.bkit-memory.json
