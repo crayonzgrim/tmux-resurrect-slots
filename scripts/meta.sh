@@ -87,6 +87,17 @@ set_slot_label() {
   mv "${tmp_path}" "${meta_path}"
 }
 
+# Clear a slot: reset meta to empty and delete slot file.
+# Args: slot_id
+clear_slot() {
+  local target_id="${1}"
+  update_slot_meta "${target_id}" "0" "" "" ""
+
+  local slot_file
+  slot_file="$(get_slot_dir)/slot${target_id}.txt"
+  rm -f "${slot_file}"
+}
+
 # Get the slot_id with the highest epoch (most recent save).
 # Returns: slot_id on stdout, or empty if no saves exist
 get_latest_slot_id() {
@@ -215,8 +226,24 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
       set_slot_label "${2}" "${3:-}"
       tmux display-message "resurrect-slots: slot ${2} renamed to '${3:-}'"
       ;;
+    clear)
+      # meta.sh clear <slot_id>
+      if [ -z "${2:-}" ]; then
+        exit 1
+      fi
+      slot_count=$(get_slot_count)
+      init_meta "${slot_count}"
+      clear_slot "${2}"
+      tmux display-message "resurrect-slots: slot ${2} cleared"
+      ;;
+    rows)
+      # meta.sh rows — output fzf rows for overwrite picker
+      slot_count=$(get_slot_count)
+      init_meta "${slot_count}"
+      build_fzf_rows_for_overwrite
+      ;;
     *)
-      echo "Usage: meta.sh set_label <slot_id> <label>" >&2
+      echo "Usage: meta.sh {set_label|clear|rows} [args...]" >&2
       exit 1
       ;;
   esac

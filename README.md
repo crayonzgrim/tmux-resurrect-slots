@@ -8,8 +8,11 @@ Keep multiple tmux session snapshots in numbered slots (like game save slots) an
 
 - **Multiple save slots** (default 5) — no more losing your previous saves
 - **fzf popup UI** — browse slots with timestamps, labels, and session summaries
+- **Preview panel** — view session/window details and pane paths in the list view
+- **Label on save** — name your saves right after saving (or skip with Enter)
+- **Delete slots** — press `d` in the list view to clear a slot
 - **Overwrite picker** — when all slots are full, choose which to overwrite
-- **Rename slots** — give meaningful labels to your saves
+- **Rename slots** — give meaningful labels to your saves anytime
 - **Auto fallback** — works without fzf (auto-selects latest slot)
 
 ## Requirements
@@ -49,9 +52,25 @@ run-shell ~/.tmux/plugins/tmux-resurrect-slots/resurrect_slots.tmux
 | Key | Action |
 |-----|--------|
 | `prefix + Ctrl-s` | Save to slot |
-| `prefix + Ctrl-r` | Restore from slot (fzf popup) |
+| `prefix + Ctrl-r` | Restore from slot |
 | `prefix + Ctrl-e` | Rename slot label |
-| `prefix + Ctrl-f` | List saved slots |
+| `prefix + Ctrl-f` | List / manage slots |
+
+### Inside the list popup (`prefix + Ctrl-f`)
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` | Navigate up / down |
+| `d` | Delete selected slot |
+| `q` | Close |
+
+### Inside other popups (save overwrite, restore, rename)
+
+| Key | Action |
+|-----|--------|
+| `j` / `k` | Navigate up / down |
+| `Enter` | Select |
+| `q` | Cancel |
 
 ## Options
 
@@ -76,31 +95,31 @@ set -g @resurrect_slots_enable_list on
 ### Saving a Session
 
 1. Press `prefix + Ctrl-s`
-2. tmux-resurrect saves the current session first
-3. If an empty slot is available, the save is stored there automatically (lowest slot number)
-4. If all slots are full, an fzf popup appears — pick which slot to overwrite (press `ESC` to cancel)
-5. A confirmation message appears: `"saved to slot N"`
+2. If an empty slot is available, the save is stored automatically
+3. If all slots are full, a popup appears — pick which slot to overwrite
+4. After saving, a label prompt appears — type a name or press `Enter` to skip
 
 ### Restoring a Session
 
 1. Press `prefix + Ctrl-r`
-2. An fzf popup shows all saved slots, sorted by most recent first
-3. The latest save is preselected — press `Enter` to restore it, or navigate to a different slot
-4. Press `ESC` to cancel
+2. A popup shows all saved slots, sorted by most recent first
+3. Navigate with `j`/`k`, press `Enter` to restore
+4. Press `q` to cancel
 5. Without fzf installed, the most recent slot is restored automatically
 
-### Viewing Saved Slots
+### Viewing and Managing Slots
 
 1. Press `prefix + Ctrl-f`
-2. An fzf popup shows all slots (saved and empty)
-3. Select a slot to see its details (timestamp, label, session summary, file size)
-4. Press `ESC` to close without any action
-5. Without fzf installed, a summary message is shown (e.g., `"3/5 slots used"`)
+2. A popup shows all slots with a preview panel on the right
+3. The preview shows: timestamp, label, sessions/windows, pane paths, file size
+4. Press `d` to delete the selected slot
+5. Press `q` to close
+6. Without fzf installed, a summary message is shown (e.g., `"3/5 slots used"`)
 
 ### Renaming a Slot
 
 1. Press `prefix + Ctrl-e`
-2. Pick a slot from the fzf popup
+2. Pick a slot from the popup
 3. A tmux prompt appears — type a label (e.g., `before-refactor`) and press `Enter`
 4. The label appears next to the slot in future popups
 
@@ -116,9 +135,10 @@ Each row shows: slot number, timestamp, label, and session summary (session name
 
 ## How It Works
 
-- **Save**: Triggers tmux-resurrect save, then copies the save file into an available slot. When all slots are full, an fzf popup lets you pick which to overwrite.
+- **Save**: Picks an empty slot (or prompts to overwrite), then triggers tmux-resurrect save, copies the save file into the slot, and prompts for a label.
 - **Restore**: Symlinks the chosen slot file as tmux-resurrect's `last` file, then triggers tmux-resurrect restore.
-- **Rename**: Updates the label in `meta.tsv` without touching the save file itself.
+- **List**: Shows all slots with a preview panel. Press `d` to delete a slot.
+- **Rename**: Updates the label in `meta.tsv` without touching the save file.
 - **Data storage**: All slot data lives in `~/.tmux/resurrect/slots/` — a `meta.tsv` file tracks metadata and `slotN.txt` files hold the actual saves.
 
 ## Troubleshooting

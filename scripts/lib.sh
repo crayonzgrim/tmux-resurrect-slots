@@ -57,36 +57,44 @@ has_fzf() {
 }
 
 # Show fzf-tmux popup and return selected line.
-# Args: prompt, preselect_index (1-based), lines (stdin)
+# Args: prompt, preselect_index (1-based), header, preview_cmd, popup_width, popup_height
 # Returns: selected line on stdout, exit 1 if cancelled
 fzf_popup_select() {
   local prompt="${1:-Select:}"
   local preselect_index="${2:-1}"
   local header="${3:-}"
+  local preview_cmd="${4:-}"
+  local popup_w="${5:-80%}"
+  local popup_h="${6:-50%}"
 
   local fzf_opts=(
     --ansi
     --no-multi
     --cycle
-    --prompt "${prompt} "
     --pointer "▶"
     --no-info
+    --no-separator
+    --layout reverse
+    --prompt ""
+    --disabled
+    --bind "change:clear-query"
+    --bind "j:down,k:up,q:abort"
   )
 
-  if [ -n "${header}" ]; then
-    fzf_opts+=(--header "${header}" --header-first)
+  if [ -n "${preview_cmd}" ]; then
+    fzf_opts+=(--preview "${preview_cmd}" --preview-window "right:50%:wrap")
+  else
+    fzf_opts+=(--no-preview)
   fi
 
-  # fzf uses 0-based default selection
-  local fzf_index=$((preselect_index - 1))
-  if [ "${fzf_index}" -ge 0 ]; then
-    fzf_opts+=(--default "${fzf_index}")
+  if [ -n "${header}" ]; then
+    fzf_opts+=(--header "${header}")
   fi
 
   if command -v fzf-tmux >/dev/null 2>&1; then
-    fzf-tmux -p -w 62% -h 38% -- "${fzf_opts[@]}"
+    FZF_DEFAULT_OPTS= fzf-tmux -p -w "${popup_w}" -h "${popup_h}" -- "${fzf_opts[@]}"
   else
-    fzf "${fzf_opts[@]}"
+    FZF_DEFAULT_OPTS= fzf "${fzf_opts[@]}"
   fi
 }
 

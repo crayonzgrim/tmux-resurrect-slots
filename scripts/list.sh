@@ -14,7 +14,6 @@ main() {
 
   # Require fzf
   if ! has_fzf; then
-    # No fzf — show summary via display-message
     local latest_id
     latest_id=$(get_latest_slot_id)
     if [ -z "${latest_id}" ]; then
@@ -31,51 +30,95 @@ main() {
     return 0
   fi
 
-  # Build rows (all slots, like overwrite view)
+  local slot_dir
+  slot_dir=$(get_slot_dir)
+  local meta_script="${SCRIPT_DIR}/meta.sh"
+
+  # Build preview command
+  local preview_cmd
+  preview_cmd="
+    slot_id=\$(echo {} | sed 's/^\\[//;s/\\].*//')
+    slot_file='${slot_dir}/slot'\"\${slot_id}\"'.txt'
+    meta_file='${slot_dir}/meta.tsv'
+
+    if [ ! -f \"\${slot_file}\" ]; then
+      echo '(empty slot)'
+      exit 0
+    fi
+
+    awk -F'\t' -v id=\"\${slot_id}\" '
+      \$1==id {
+        print \"Saved: \" \$3
+        if (\$4 != \"\") print \"Label: \" \$4
+        print \"\"
+      }
+    ' \"\${meta_file}\"
+
+    echo 'Sessions / Windows'
+    echo '──────────────────────────'
+
+    awk -F'\t' '
+      \$1==\"window\" {
+        sess=\$2; wname=\$4
+        sub(/^:/, \"\", wname)
+        wins[sess] = (wins[sess] ? wins[sess] \", \" : \"\") wname
+      }
+      END {
+        for (s in wins) printf \"  %s: [%s]\\n\", s, wins[s]
+      }
+    ' \"\${slot_file}\"
+
+    echo ''
+    echo 'Pane Paths'
+    echo '──────────────────────────'
+
+    awk -F'\t' '
+      \$1==\"pane\" {
+        path=\$8; sub(/^:/, \"\", path)
+        if (!seen[path]++) printf \"  %s\\n\", path
+      }
+    ' \"\${slot_file}\"
+
+    echo ''
+    size=\$(wc -c < \"\${slot_file}\" | tr -d ' ')
+    echo \"Size: \${size} bytes\"
+  "
+
+  # Loop: re-open after delete
   local rows
   rows=$(build_fzf_rows_for_overwrite)
 
-  if [ -z "${rows}" ]; then
-    display_msg "resurrect-slots: no slots"
-    return 0
-  fi
+  while true; do
+    local result=""
+    result=$(echo "${rows}" | FZF_DEFAULT_OPTS= fzf-tmux -p -w 80% -h 50% -- \
+      --ansi --no-multi --cycle \
+      --pointer "▶" --no-info --no-separator \
+      --layout reverse --prompt "" \
+      --bind "j:down,k:up,q:abort" \
+      --expect=d \
+      --header "View slots (d: delete, q: close)" \
+      --preview "${preview_cmd}" --preview-window "right:50%:wrap") || true
 
-  # Show fzf popup
-  local chosen
-  chosen=$(echo "${rows}" | fzf_popup_select "Slots:" 1 "Select slot for details (ESC to close)")
-  if [ -z "${chosen}" ]; then
-    return 0
-  fi
+    local key selection
+    key=$(head -1 <<< "${result}")
+    selection=$(sed -n '2p' <<< "${result}")
 
-  # Show selected slot detail
-  local slot_id
-  slot_id=$(extract_slot_id_from_row "${chosen}")
+    if [ "${key}" = "d" ] && [ -n "${selection}" ]; then
+      local slot_id="${selection#\[}"
+      slot_id="${slot_id%%\]*}"
 
-  local slot_dir
-  slot_dir=$(get_slot_dir)
-  local slot_file="${slot_dir}/slot${slot_id}.txt"
-
-  if [ ! -f "${slot_file}" ]; then
-    display_msg "resurrect-slots: slot ${slot_id} is empty"
-    return 0
-  fi
-
-  # Read meta for this slot
-  local detail=""
-  while IFS=$'\t' read -r sid epoch iso label summary; do
-    if [ "${sid}" = "${slot_id}" ]; then
-      local size
-      size=$(wc -c < "${slot_file}" | tr -d ' ')
-      detail="Slot ${sid}"
-      if [ -n "${label}" ]; then
-        detail="${detail} | ${label}"
+      # Skip if empty slot
+      local slot_file="${slot_dir}/slot${slot_id}.txt"
+      if [ -f "${slot_file}" ]; then
+        clear_slot "${slot_id}"
       fi
-      detail="${detail} | ${iso} | ${summary} | ${size} bytes"
-      break
-    fi
-  done < "$(get_slot_dir)/meta.tsv"
 
-  display_msg "resurrect-slots: ${detail}"
+      rows=$(build_fzf_rows_for_overwrite)
+      continue
+    fi
+
+    break
+  done
 }
 
 main

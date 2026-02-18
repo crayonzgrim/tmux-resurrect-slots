@@ -60,7 +60,7 @@ main() {
 
     # Latest slot is first row (sorted by epoch desc)
     local chosen
-    chosen=$(echo "${rows}" | fzf_popup_select "Restore:" 1 "Select slot to restore")
+    chosen=$(echo "${rows}" | fzf_popup_select "Restore:" 1 "Select slot to restore" "" "40%" "38%")
     if [ -z "${chosen}" ]; then
       display_msg "resurrect-slots: restore cancelled"
       return 0

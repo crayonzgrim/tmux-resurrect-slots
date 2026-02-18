@@ -13,6 +13,7 @@ find_resurrect_save_script() {
   local candidates=(
     "${TMUX_PLUGIN_MANAGER_PATH}/tmux-resurrect/scripts/save.sh"
     "${HOME}/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+    "${HOME}/.config/tmux/plugins/tmux-resurrect/scripts/save.sh"
     "${XDG_DATA_HOME:-${HOME}/.local/share}/tmux/plugins/tmux-resurrect/scripts/save.sh"
   )
 
@@ -88,35 +89,7 @@ main() {
   # Ensure meta is initialized
   init_meta "${slot_count}"
 
-  # Run tmux-resurrect save
-  local resurrect_save
-  resurrect_save=$(find_resurrect_save_script)
-  if [ -z "${resurrect_save}" ]; then
-    display_msg "resurrect-slots: tmux-resurrect save script not found"
-    return 1
-  fi
-
-  # Execute resurrect save (it runs in background via run-shell, wait a moment)
-  "${resurrect_save}" >/dev/null 2>&1
-  sleep 0.5
-
-  # Find the latest resurrect file
-  local latest_file
-  latest_file=$(find_latest_resurrect_file)
-  if [ -z "${latest_file}" ]; then
-    display_msg "resurrect-slots: no resurrect file found after save"
-    return 1
-  fi
-
-  # Collect session info
-  local summary
-  summary=$(collect_session_summary)
-  local epoch iso label
-  epoch=$(now_epoch)
-  iso=$(now_iso_with_tz)
-  label=""
-
-  # Choose slot
+  # Choose slot FIRST (before resurrect save) for fast popup response
   local target_slot=""
 
   # Check for empty slot first
@@ -133,7 +106,7 @@ main() {
     rows=$(build_fzf_rows_for_overwrite)
 
     local chosen
-    chosen=$(echo "${rows}" | fzf_popup_select "Overwrite:" 1 "All slots full — pick one to overwrite")
+    chosen=$(echo "${rows}" | fzf_popup_select "Overwrite:" 1 "All slots full — pick one to overwrite (q: cancel)" "" "40%" "38%")
     if [ -z "${chosen}" ]; then
       display_msg "resurrect-slots: save cancelled"
       return 0
@@ -142,15 +115,43 @@ main() {
     target_slot=$(extract_slot_id_from_row "${chosen}")
   fi
 
+  # Run tmux-resurrect save
+  local resurrect_save
+  resurrect_save=$(find_resurrect_save_script)
+  if [ -z "${resurrect_save}" ]; then
+    display_msg "resurrect-slots: tmux-resurrect save script not found"
+    return 1
+  fi
+
+  "${resurrect_save}" >/dev/null 2>&1
+  sleep 0.3
+
+  # Find the latest resurrect file
+  local latest_file
+  latest_file=$(find_latest_resurrect_file)
+  if [ -z "${latest_file}" ]; then
+    display_msg "resurrect-slots: no resurrect file found after save"
+    return 1
+  fi
+
+  # Collect session info
+  local summary
+  summary=$(collect_session_summary)
+  local epoch iso
+  epoch=$(now_epoch)
+  iso=$(now_iso_with_tz)
+
   # Copy resurrect file to slot
   local slot_dir
   slot_dir=$(get_slot_dir)
   cp "${latest_file}" "${slot_dir}/slot${target_slot}.txt"
 
-  # Update meta
-  update_slot_meta "${target_slot}" "${epoch}" "${iso}" "${label}" "${summary}"
+  # Update meta (no label yet)
+  update_slot_meta "${target_slot}" "${epoch}" "${iso}" "" "${summary}"
 
-  display_msg "resurrect-slots: saved to slot ${target_slot}"
+  # Prompt for label — Enter to skip
+  tmux command-prompt -p "Saved to slot ${target_slot}. Label (Enter to skip):" \
+    "run-shell \"bash '${SCRIPT_DIR}/meta.sh' set_label '${target_slot}' '%%'\""
 }
 
 main

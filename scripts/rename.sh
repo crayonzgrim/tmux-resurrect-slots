@@ -36,7 +36,7 @@ main() {
 
   # Pick slot
   local chosen
-  chosen=$(echo "${rows}" | fzf_popup_select "Rename:" 1 "Select slot to rename")
+  chosen=$(echo "${rows}" | fzf_popup_select "Rename:" 1 "Select slot to rename" "" "40%" "38%")
   if [ -z "${chosen}" ]; then
     display_msg "resurrect-slots: rename cancelled"
     return 0
